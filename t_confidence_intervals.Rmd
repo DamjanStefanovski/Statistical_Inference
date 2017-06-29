@@ -1,0 +1,175 @@
+---
+title: "Independent group t intervals"
+author: "Damjan Stefanovski"
+date: "June 28, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+
+##Independent group tt confidence intervals
+Suppose that we want to compare the mean blood pressure between two groups in a randomized trial; those who received the treatment to those who received a placebo
+Here this is not unlike so-called A/B testing, which is probably the language is used most often in data science. Here whether A/B testing or randomized trial, you are performing a randomization, in order to balance unobserved covariance that may contaminate your results. Because you’ve performed this randomization, it’s reasonable to just compare the two groups with a tt confidence interval or a tt test, which we’ll cover over on.
+
+We cannot use the paired tt test because the groups are independent (there is no matching on the subjects between the two groups) and may have different sample sizes
+
+We now present methods used for comparing across independent groups.
+
+Confidence interval
+Therefore a (1-a)×100%(1-a)×100% confidence interval for µy-µxµy-µx is
+Y¯-X¯±tnz+ny-2,1-a/2Sp(1nx+1ny)1/2
+Y¯-X¯±tnz+ny-2,1-a/2Sp(1nx+1ny)1/2
+
+So the average in one group minus the average in another group, times the relevant tt quantile, where here the degrees of freedom are a little bit hard. The degrees of freedom are nx+ny-2nx+ny-2, where nxnx is the number of observations into the XX group, nyny is the number of observations into the YY group. The last part is the standard error of the difference. We’ll talk about SpSp in a minute, but it is multiplied times the factor (1nx+1ny)1/2(1nx+1ny)1/2. You notice that as we collect more data, 1nx1nx gets very small and 1ny1ny gets very small.
+
+The variance estimator is
+S2p=(nx-1)S2x+(ny-1)S2y/(nX+ny-2)
+Sp2=(nx-1)Sx2+(ny-1)Sy2/(nX+ny-2)
+
+That is the so-called pooled variance, and its squared root is the pooled standard deviation. If we’re willing to assume that the variance is the same in the two groups, which would be reasonable if we had performed randomizations, then our estimate of the variance should at some level be an average of the variance estimate from group one and the variance estimate from group two. However, if we have different sample sizes, we’d like to weight the variance estimate from group one more than we weight the variance estimate from group two, and that is exactly what the pooled variance estimate does.
+
+If in fact you have equal numbers of observations in both groups, then nx=nynx=ny, then the pooled variance is the simple average of the variance from the XX group and the variance from the YY group.
+
+Remember this inteval is assuming a constant variance across the two groups
+If that assumption is violated, then this interval won’t give you the proper coverage.
+
+If there is some doubt, assume a different variance per group, which we’ll cover later on in the lecture with a slightly different interval.
+Example
+Based on Rosner, Fundamentals of Biostatistics
+
+(Really a very good reference book)
+
+Comparing Sistolic Blood Pressure for 8 oral contraceptive users versus 21 controls
+
+X¯OC=132.86X¯OC=132.86 mmHg with SOC=15.34SOC=15.34 mmHg
+
+X¯C=127.44X¯C=127.44 mmHg with SC=18.23SC=18.23 mmHg
+
+Pooled variance estimate 
+
+```{r}
+sp <- sqrt((7 * 15.34^2 + 20 * 18.23^2) / (8 + 21 - 2))
+132.86 - 127.44 + c(-1, 1) * qt(.975, 27) * sp * (1 / 8 + 1 / 21)^.5
+```
+
+The sp variable gives us a weighted average of the variances, where the control group with 2121, gets more impact then the oral contraceptive users with 88.
+
+Then my interval is the difference in the means, whenever you’re doing and indipendent group interval, you always want to kind of mentally think, which one is the first part of the subtraction. In this case my oral contraceptive users are the first part, so I want just to remember that, because you don’t want to look silly and suggest the controls have a higher blood pressure level than oral contraceptive users when the empirical averages are exactly the reverse, just because you reverse the order in which you were subtracting things. Then I want to add and subtract the relevant tt quantile, 2727 dfdf, which is 8+21-28+21-2; the pooled standard deviation estimate times 1nx+1ny1nx+1ny raised to one half power, I get about -10-10 to 2020. In this case my interval contains 00, so I cannot rule out 00 as the possibility for the population difference between the two groups.
+
+# Mistakenly treating the sleep data as grouped
+Recalling the sleep data example
+
+```{r}
+# loads the data
+data(sleep)
+# Here I grab the first ten measurements, and the latter 10 measurements
+g1 <- sleep$extra[1 : 10]; g2 <- sleep$extra[11 : 20]
+# The difference then is group 2 minus group 1. The vector subtraction makes sense, because I grabbed them in a specific order.
+difference <- g2 - g1
+# Then I calculate the mean, standard deviation, and number of observations
+mn <- mean(difference); s <- sd(difference); n <- 10
+```
+
+
+```{r}
+
+n1 <- length(g1); n2 <- length(g2)
+sp <- sqrt( ((n1 - 1) * sd(g1)^2 + (n2 - 1) * sd(g2)^2) / (n1 + n2 - 2))
+md <- mean(g2) - mean(g1)
+semd <- sp * sqrt(1/n1 + 1/n2)
+rbind (
+        md + c(-1, 1) * qt(.975, n1 + n2 - 2) * semd,
+        t.test(g2, g1, paire = F, var.equal = T)$conf,
+        t.test(g2, g1, paired = T)$conf
+)
+
+```
+
+So I have n1n1 from the group 11, n2n2 is from the group 22. Remember in this case both of those would be 1010. I go through the construction of the pooled standard deviation estimate. I get the mean difference, and I get the standard error of the mean difference, which is the pooled standard deviation estimate times square root 1n1+1n21n1+1n2. Then I collect togheter my manual construction of the confidence interval, which takes the mean difference and subtracts the tt quantile times the standard error of the mean, and then I do the t.test, and I give it the first vector and the second vector. I say paired = FALSE, and because I want the interval, where I’m treating the variance of the two groups as equal, I do var.equal = TRUE, then I grab the confidence interval part. Then I want to compare it, where paired = TRUE, just to remind us that ignoring comparing can really mess things up, and I want to grab the confidence interval.
+
+So here I get the interval and my manual calculations of course exactly agrees with the standard tt calculation, and you see that you get a very different interval when you do the paired. If you take into account of the pairing, actually the interval is entirely above 0, where if you disregard the pairing, the interval actually contains 0. And if you actually look at the plot it seems quite clear to me why that’s the case.
+
+```{r}
+ggplot(data=sleep, aes(x=group, y=extra, group=ID, colour=ID)) +
+        geom_line() +
+        geom_point( size=4, shape=21, fill="pink") +
+        ggtitle("Extra Hours Slept by Subject")
+```
+
+
+If you’re comparing the variation of the first group to the variation of the second group, that’s a lot of variability in the two groups. However when you’re matching up the subjects and looking at the variability in the difference, there’s a lot of that variability that’s explained by inter-subject variability.
+
+ChickWeight data in R
+It contains weights of chicks from birth to a couple of weeks later. I need to work with the data and I highly recommend the package reshape2. So the ChickWeight data comes in a format that is a long format. It’s the chick lined up in a long vector. If you want to take that long vector and make it a wide vector (there’s one column for each time point that we measure the chick), then you want to do something like dcast, which is a function in the reshape package.
+
+```{r}
+library(datasets); data("ChickWeight"); library(reshape2)
+# We want to dcast the ChickWeight data frame and the variables Diet and Chick are the things that are staying the same, and the Time variable is the one that's going to get converted from a long format to a short format.
+##define weight gain or loss
+wideCW <- dcast(ChickWeight, Diet + Chick ~ Time, value.var = "weight")
+# I didn't like the names that it was giving it, so I renamed the latter couple of columns.
+names(wideCW)[-(1 : 2)] <- paste("time", names(wideCW)[-(1 : 2)], sep = "")
+# Then I wanted to create a specific variable, that is simply total weight gain from time zero. So I use the package dplyr
+library(dplyr)
+
+wideCW <- mutate(wideCW, gain = time21 - time0)
+```
+
+But let’s look at the data first before we run our test.
+
+#Plotting the raw data
+
+```{r}
+
+library(ggplot2)
+
+ggplot(data=ChickWeight, aes(x = Time, y = weight, colour = Diet, group = interaction(Diet, Chick))) +         
+        geom_line() + 
+        facet_wrap(~ Diet) +
+        theme_bw()
+```
+Here’s the data for each of the four diets plotted as a so-called spaghetti plot. Here we show each of the diets from baseline 0 to the final time point for each case. So you’ll notice that there are some things that are potentially suspect, though they’re little bit hard to ascertain because of the varying sample sizes. For on the first diet appears to be a lot more end variation than in the fourth diet, so it’s maybe a little bit hard to actually compare the variability, I put a reference line here that is the mean for each of the groups, and I think at least without any formal statistical test, it does appear that the average weight gain for the first diet does appear to be a little bit slower than the average weight gain for the fourth diet. Well let’s actually look at it, using a normal confidence interval.
+
+
+
+#Weight gain by diet
+I show the end weight minus the baseline weight by each of the diets, using a so-called violin plot. We’re going to look at diets one and four.
+
+
+```{r}
+library(ggplot2)
+ggplot(data=wideCW, aes(x = factor(Diet), y = gain, colour = factor(Diet))) +
+        geom_violin()
+```
+
+Our assumption of equal variances appears suspect here.
+
+##Let’s do a tt interval
+In order to do the tt test notation, where you take an outcome variable like weight gain, and use tile times the explanatory variable of interest, for the t test function, fof that to work, it needs to only have two levels for the explanatory variable. That’s exactly what the former subset command does.
+
+
+```{r}
+# I take those records for which diet is in the variables one or four
+wideCW14 <- subset(wideCW, Diet %in% c(1, 4))
+rbind(
+        # The first test has paired = FALSE, which in this case paired = TRUE
+        # isn't even an option because the variables are of different length.
+        # What I do compare here is assumption that the variances are equal 
+        # versus the assumption that the variances are unequal.
+        t.test(gain ~ Diet, paired = F, var.equal = T, data = wideCW14)$conf,
+        t.test(gain ~ Diet, paired = F, var.equal = F, data = wideCW14)$conf
+)
+
+```
+
+You do get different intervals. In the first one I get -108-108 to -14-14; in the second I get -104-104 to -18-18. Both cases the intervals are enterely below zero, suggesting less weight gain on diet one then on diet four. However the specific interval does change depending on whether or not you have the variances are equal and the variances are false. I don’t know enough about the specific dataset to ascertain whether that’s a substantive change or not, but because it might be important let’s also cover the tt interval where you assume that variances are unequal.
+
+
+
+
+
+
