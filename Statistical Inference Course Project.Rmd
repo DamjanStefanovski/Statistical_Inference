@@ -1,0 +1,176 @@
+---
+title: "Statistical Inference Project"
+author: "Damjan Stefanovski"
+date: "July 4, 2017"
+output: html_document
+---
+# Synopsis
+This is a project for the Statistical Inference class from Coursera. The project is split in two parts:
+# Part 1 : Simulation Exercise to explore inference
+# Part 2 : Basic inferential analysis using the ToothGrowth data in the R datasets package
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(datasets)
+```
+
+## Part 1: Simulation Exercise
+Simulating the data in R using the rexp() function, that takes two arguments. Number of random exponential variables and the rate of exponential, which is defined as  ??. According to the R documentation for the function rexp(), the distribution will a mean of 1/???? and have a density of:
+
+f(x)=??e-??x      
+
+For this simulation, ????  will be set to 0.2. A distribution of 1000 of this random variables is pictured below.
+
+```{r}
+set.seed(10270)
+lambda <- 0.2 #rate parameter lambda
+n <- 40 #number of exponentials 
+qplot(rexp(1000, rate=lambda))  #number of simulations conducted
+```
+As we can see the distribution is not noramly distributed. In order to see the relationship with the CLT(central limit theorem), 1000 distributions of 40 random exponential variables were simulated and stored in the data frame simulated_data.
+
+```{r}
+set.seed(10270)
+rowNames <- NULL
+for(i in 1:1000){rowNames <- c(rowNames,paste("Sim.", i, sep = ""))}
+colNames<- NULL
+for(i in 1:40){colNames<- c(colNames,paste("Rep.", i, sep = ""))}
+
+simulated_data <- matrix(nrow = 1000, ncol = 40, dimnames = list(rowNames, colNames), 
+                   byrow =TRUE)
+lambda <- 0.2
+for(i in 1:1000){simulated_data[i,]<- rexp(40, rate = lambda)}
+simulated_data <- as.data.frame(simulated_data)
+
+simulated_data$Mean <-  apply(simulated_data, 1, mean)
+simulated_data$SD <- apply(simulated_data[,1:40], 1, sd)
+```
+The Mean and SD represent the Mean and the Standard deviation. Very useful for calculating the pooled mean and sd for comparing them to the theoretical values.
+## Sample Means vs Theoretical Means
+As stated above, the theoretical mean of the exponential distribution is 1/????. In this case ???? = 0.2, therefore the theoretical mean is 5. By taking the “mean of the means”, equal to 5.039 a comparison can be made with the theoretical value.
+
+X¯¯¯¯Mean=5.039˜1/??=5
+X¯Mean=5.039˜1/??=5
+
+## Sample Variance vs Theoretical Variance
+The theoretical standard deviation is also 1/????, or in this case, 5. Therefore, a calculation of the mean of the standard deviations, equal to 4.909 can be done to make a comparison. To compare the variances, the standard deviations are simply squared i.e. the theoretical variance is 25 and the sample variance is 24.096.
+
+S2=24.096˜1/??2=25
+S2=24.096˜1/??2=25
+
+## Distribution
+Central Limit Theorem (CLT) states that the distribution of the averages of independent and identically distributed become normal as sample size increases. This can be visually represented by plotting a histogram of the distribution means and overlaying a normally distributed curve.
+```{r}
+plot <- ggplot(data = simulated_data, aes(x = Mean))
+
+plot + geom_histogram(aes(y=..density..), fill='orange') +
+        ggtitle('Distribution of the simulations and the Normal Curve') +
+      stat_function(fun = dnorm,
+                    args = list(mean = mean(simulated_data$Mean),
+                                            sd = sd(simulated_data$Mean)),
+                    lwd = 1,
+                    col = "red") + xlim(c(2,8))
+```
+ The above figure depicts, that the averages of the distribution in the simulation data is approaching a normal distribution as the sample size increases, supporting CLT.Observed here as well is the mean of means and mean of standard deviations is approaching the theoretical value of 1/???? as the sample size increases.
+
+
+## Part 2: Basic Inferential Data Analysis
+Summary of the Data
+This analysis is concerned with the “ToothGrowth” data from the datasets package. It measures the length of odontoblasts in 60 guinea pigs. Each animal was given one of three different dose levels of vitamin C, either 0.5, 2.0 and 2.0 mg/L per day. This was administered by two different methods, either by dosing with orange juice (OJ), or ascorbic acid (VC).
+
+```{r}
+library(DT)
+library(knitr)
+data("ToothGrowth")
+
+str(ToothGrowth)
+```
+To explore the dataset in a table format 
+```{r}
+datatable(ToothGrowth, extensions = 'AutoFill', options = list(
+  autoFill = list(columns = c(1, 2, 3), focus = 'click')
+))
+```
+
+```{r}
+summary(ToothGrowth)
+```
+We can observe that the unique values in the column supp are VC and OJ.
+We can also notice that the unique values in the column dose are 0.5, 1 and 2
+```{r}
+unique(ToothGrowth$supp)
+unique(ToothGrowth$dose)
+```
+Calculating the mean of the two froups supplements
+```{r}
+# Mean for OJ
+mean_oj <- mean(ToothGrowth$len[ToothGrowth$supp=='OJ'])
+mean_oj
+
+# Mean for VC
+mean_vc <- mean(ToothGrowth$len[ToothGrowth$supp=='VC'])
+mean_vc
+```
+
+
+```{r}
+table1 <- with(ToothGrowth, tapply( X = len, INDEX = list(dose, supp),
+                                   FUN = mean))
+print(kable(table1))
+```
+The same method can be used to calculate the standard deviations for the same groups of variables.
+```{r}
+table2 <- with(ToothGrowth, tapply( X = len, INDEX = list(dose, supp),
+                                   FUN = sd))
+print(kable(table2, digits = 2))
+```
+
+## Statistical Testing
+Is this section of the report, the t-test is employed, to compare the different supplement types at comparative dosage levels
+Interval CIup=X¯+tn-1S/n--vCIup=X¯+tn-1S/n, where tn-1tn-1 is the relevant quantile
+
+```{r}
+library(knitr)
+test_0.5 <- t.test(
+      ToothGrowth$len[ToothGrowth$supp=="OJ"&ToothGrowth$dose==0.5], 
+      ToothGrowth$len[ToothGrowth$supp=="VC"&ToothGrowth$dose==0.5])
+test_1.0 <- t.test(
+      ToothGrowth$len[ToothGrowth$supp=="OJ"&ToothGrowth$dose==1.0], 
+      ToothGrowth$len[ToothGrowth$supp=="VC"&ToothGrowth$dose==1.0])
+test_2.0 <- t.test(
+      ToothGrowth$len[ToothGrowth$supp=="OJ"&ToothGrowth$dose==2.0], 
+      ToothGrowth$len[ToothGrowth$supp=="VC"&ToothGrowth$dose==2.0])
+
+data_summary <- rbind(test_0.5$conf.int, test_1.0$conf.int,
+                      test_2.0$conf.int)
+row.names <- c(0.5, 1.0, 2.0)
+col.names <- c("Lower.95%.Conf.Int", "Upper.95%.Conf.Int")
+dimnames(data_summary)<-list(row.names, col.names)
+P.values <- c(test_0.5$p.value, test_1.0$p.value, test_2.0$p.value)
+data_summary <- cbind(data_summary, P.values)
+print(kable(data_summary))
+```
+here we have table with the confidence intervals and P-values of all the t-tests.
+
+To compare visualy tooth growth by using the flowing boxplot chart where data is grouped by supp and dose.
+```{r}
+ToothGrowth$dose <- as.factor(ToothGrowth$dose)  #convert dose in factor for plotting
+ggplot(data=ToothGrowth,aes(dose,len))+geom_boxplot(aes(fill=dose))+
+    facet_grid(~supp)+ggtitle('Tooth Growth comparing the supp and dose')
+```
+
+and here are some single points composing the data set
+```{r}
+ggplot(data = ToothGrowth, aes(dose,len,color=supp))+geom_bin2d()+
+    ggtitle('Tooth Growth')
+```
+
+## Conclusions
+In this hypothesis test, the null hypothesis is that there is no difference between the average of the length of odontoblasts in guinea pigs dosed with orange juice and guinea pigs dosed with vitamin C. The data supports rejecting the null hypothesis at the doses 0.5 and 1.0 mg/L per day, and accepting the null hypothesis at the higher dose of 2.0 mg/L per day.
+
+The confidence intervals of the two lower dosage levels do not fall either side of zero. Both tests also return very low P-values i.e. both values <0.01. Both these suggest rejecting the null hypothesis, and accepting the alternative hypothesis that there is a significant difference between the two means.
+
+This differs in the higher dosage level. The confidence levels fall either side of zero. It also has a P-value much higher i.e. >0.95. This suggests that the null hypothesis should be accepted.
+
+Statistical inference models often rely assumptions holding true during the analysis. For instance, the t-tests completed on the sample populations assume that sample variances are not significantly different. There is also the assumption that the sampled data is consistent with true population.
+
